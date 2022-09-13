@@ -1,0 +1,192 @@
+---
+title: "Gene set scores computation with NetActivity"
+author: 
+-   name: Carlos Ruiz Arenas
+    affiliation: Centro de Investigación Biomédica en Red de Enfermedades Raras (CIBERER), Barcelona, Spain
+    email: carlos.ruiza@upf.edu
+date: "`r Sys.Date()`"
+package: NetActivity
+output: 
+    BiocStyle::html_document:
+        toc_float: true
+vignette: >
+    %\VignetteIndexEntry{"Gene set scores computation with NetActivity"}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Installation
+
+You can install the development version of NetActivity from [GitHub](https://github.com/) with:
+
+```{r, eval = FALSE}
+# install.packages("devtools")
+devtools::install_github("yocra3/NetActivity")
+```
+
+# Introduction
+
+The coordination of multiple genes is required to perform specific biological functions, so grouping gene expression in gene sets provides better biological insights than studying individual genes. We have developed a framework (`NetActivityTrain`) to encode individual gene expression measurements into gene set scores (ref). Our framework is based on sparsely-connected autoencoders. In our framework, each gene set is represented by a neuron in the hidden layer, which is connected to only the gene set genes from the input layer. Nonetheless, to ensure a better representation of the gene sets, all gene sets are connected to all genes in the output layer.
+
+Our framework is implemented, which is useful to train the models but not to apply the models to new data. To overcome this issue, we have implemented the package `r Githubpkg("yocra3/NetActivity")`. `r Githubpkg("yocra3/NetActivity")` enables to easily apply the gene set representations obtained with `NetActivityTrain` to new datasets. We have included two models containing GO Biological processes and KEGG pathways trained with GTEx or TCGA data in `r Githubpkg("yocra3/NetActivityData")`.
+
+# Pre-processing
+
+Computation of gene set scores is performed with `computeGeneSetScores`. The `computeGeneSetScores` functions requires a `SummarizedExperiment` with the gene expression data standardized at gene level. The function `prepareSummarizedExperiment` facilitates the process.
+
+`r Githubpkg("yocra3/NetActivity")` can be applied to RNAseq or microarray data. We will exemplify how to process each dataset independently.
+
+## RNAseq
+
+For this vignette, we will show how to process RNAseq using the `r Biocpkg("airway")` dataset:
+
+```{r, warning = FALSE, message = FALSE}
+library(NetActivity)
+library(DESeq2)
+library(airway)
+data(airway)
+```
+
+The `airway` dataset contains `r nrow(airway)` genes and `r ncol(airway)` samples. Gene expression data is represented as counts. `r Rpackage("NetActivity")` functions require normalized data to work. We suggest using Variance Stabilizing Transformation from `r Biocpkg("DESeq2")` to normalize gene expression data:
+
+```{r}
+ddsSE <- DESeqDataSet(airway, design = ~ cell + dex)
+vst <- varianceStabilizingTransformation(ddsSE)
+```
+
+Once we have normalized the data, we can proceed with the pre-processing. `prepareSummarizedExperiment` requires two arguments: a `SummarizedExperiment` and a model trained from `NetActivityTrain`. The current version of `r Rpackage("NetActivityData")` includes a model with GO-BP (Biological Processes) terms and KEGG pathways trained with GTEx or with TCGA. In this vignette, we will use the model trained in GTEx:
+
+```{r}
+out <- prepareSummarizedExperiment(vst, "gtex_gokegg")
+out
+```
+
+`prepareSummarizedExperiment` performs two steps. First, it checks whether all genes in the model are present in the input `SummarizedExperiment`. Missing genes are added as a row of 0s. Second, the function standardized gene expression data by gene. We can compare the genes values before and after `prepareSummarizedExperiment` to see the effect of normalization:
+
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+```
+
+```{r plot, fig.cap = "Standardization. Effect of standardization on gene expression values. Before represent the gene expression values passed to prepareSummarizedExperiment. After are the values obtained after prepareSummarizedExperiment."}
+rbind(assay(vst[1:5, ]) %>%
+        data.frame() %>%
+        mutate(Gene = rownames(.)) %>%
+        gather(Sample, Expression, 1:8) %>%
+        mutate(Step = "Before"),
+    assay(out[1:5, ]) %>%
+        data.frame() %>%
+        mutate(Gene = rownames(.)) %>%
+        gather(Sample, Expression, 1:8) %>%
+        mutate(Step = "After")) %>%
+    mutate(Step = factor(Step, levels = c("Before", "After"))) %>%
+    ggplot(aes(x = Gene, y = Expression, col = Gene)) +
+        geom_boxplot() +
+        theme_bw() +
+        facet_grid(~ Step, scales = "free") +
+        theme(axis.ticks = element_blank(), axis.text.x = element_blank())        
+```
+
+In Figure \@ref(fig:plot), we can see that the original gene expression values are normalized values with different medians and dispersions. After standardization, all gene values are centered to a mean of 0 and have more similar distributions.
+
+Next, we can check the values of a gene not present originally in the data:
+
+```{r}
+assay(out["ENSG00000278637", ]) 
+```
+
+Notice that functions included in `r Rpackage("NetActivity")` require that the `SummarizedExperiment` and the model shared the same annotation. In this example, both objects were annotated using ENSEMBL, so no additional steps were required. In case the genes in the `SummarizedExperiment` use a different annotation, see how to convert them in the next section. Notice that the current models included in `r Rpackage("NetActivityData")` contain the genes using ENSEMBL annotation.
+
+## Microarray data
+
+For this vignette, we will show how to process microarray data using the `r Biocpkg("Fletcher2013a")` dataset:
+
+```{r, message = FALSE, warning = FALSE}
+library(Fletcher2013a)
+library(limma)
+data(Exp1)
+Exp1
+```
+
+`Exp1` is an `ExpressionSet` containing the information for `r nrow(Exp1)` genes and `r ncol(Exp1)` samples. Genes are named with Affymetrix ids, but the SYMBOL information is available.
+
+The first step is converting the `ExpressionSet` to a `SummarizedExperiment`:
+
+```{r}
+SE_fletcher <- SummarizedExperiment(exprs(Exp1), colData = pData(Exp1), rowData = fData(Exp1))
+```
+
+Second, we will set the rownames to ENSEMBL. For this, we will first map probe ids to SYMBOL and then to ENSEMBL id. Notice that mapping probes to SYMBOL and then to ENSEMBL might result in probes without annotation or duplicated probes with the same ENSEMBL id. For the sake of simplicity, in this vignette we will remove probes without SYMBOL or with duplicated SYMBOLs based on order. Nonetheless, the users are encouraged to apply other criteria in order to get the final set. 
+
+```{r, warning=FALSE, message = FALSE}
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+```
+
+```{r}
+rownames(SE_fletcher) <- rowData(SE_fletcher)$SYMBOL
+SE_fletcher <- SE_fletcher[!is.na(rownames(SE_fletcher)), ]
+SE_fletcher <- SE_fletcher[!duplicated(rownames(SE_fletcher)), ]
+
+rownames(SE_fletcher) <- mapIds(org.Hs.eg.db,
+    keys = rownames(SE_fletcher),
+    column = 'ENSEMBL',
+    keytype = 'SYMBOL')
+SE_fletcher <- SE_fletcher[!is.na(rownames(SE_fletcher)), ]
+SE_fletcher <- SE_fletcher[!duplicated(rownames(SE_fletcher)), ]
+SE_fletcher
+```
+
+Now, we can pass the resulting `SummarizedExperiment` to `prepareSummarizedExperiment`:
+
+```{r}
+out_array <- prepareSummarizedExperiment(SE_fletcher, "gtex_gokegg")
+out_array
+```
+
+# Computing the scores
+
+Once we have pre-processed the data, we are ready to compute the gene set scores. We will continue with the output of the microarray data (`out_array`).
+
+`computeGeneSetScores` requires two arguments: a `SummarizedExperiment` and a model trained from `NetActivityTrain`:
+
+```{r}
+scores <- computeGeneSetScores(out_array, "gtex_gokegg")
+scores
+```
+
+`computeGeneSetScores` returns a `SummarizedExperiment` with the gene set scores for all the gene sets present in the model. The `colData` of the input `SummarizedExperiment` is preserved, so this object can be directly used for downstream analyses.
+
+## Analysing the scores
+
+Once the gene set scores are computed, we can test for differential expression using `r Biocpkg("limma")`. We will run a differential analysis due to treatment, adjusted for time points:
+
+```{r}
+library(limma)
+
+mod <- model.matrix(~ Treatment + Time, colData(scores))
+fit <- lmFit(assay(scores), mod) %>% eBayes()
+topTab <- topTable(fit, coef = 2:4)
+topTab
+```
+
+Many gene sets present high differences due to treatment. We will explore the distribution of gene set scores for the top gene set:
+
+```{r plotScores, fig.cap = "GO:1990440 activity score. GO:1990440 presented the most significant difference due to treatment."}
+data.frame(Expression = as.vector(assay(scores["GO:1990440", ])),
+    Treatment = scores$Treatment) %>%
+    ggplot(aes(x = Treatment, y = Expression, col = Treatment)) +
+        geom_boxplot() +
+        theme_bw()       
+```
+
+
+We can see the differences in GO:1990440 activiation in Figure \@ref(fig:plotScores). 
+
+```{r}
+sessionInfo()
+```
+
