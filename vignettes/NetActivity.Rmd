@@ -105,8 +105,8 @@ Notice that functions included in `r Rpackage("NetActivity")` require that the `
 For this vignette, we will show how to process microarray data using the `r Biocpkg("Fletcher2013a")` dataset:
 
 ```{r, message = FALSE, warning = FALSE}
-library(Fletcher2013a)
 library(limma)
+library(Fletcher2013a)
 data(Exp1)
 Exp1
 ```
@@ -158,22 +158,36 @@ scores <- computeGeneSetScores(out_array, "gtex_gokegg")
 scores
 ```
 
-`computeGeneSetScores` returns a `SummarizedExperiment` with the gene set scores for all the gene sets present in the model. The `colData` of the input `SummarizedExperiment` is preserved, so this object can be directly used for downstream analyses.
+`computeGeneSetScores` returns a `SummarizedExperiment` with the gene set scores for all the gene sets present in the model. The `colData` of the input `SummarizedExperiment` is preserved, so this object can be directly used for downstream analyses. The `rowData` contains annotation of the gene sets, which can be useful for downstream analyses:
 
-## Analysing the scores
+```{r}
+rowData(scores)
+```
+
+
+# Differential gene set scores analysis
 
 Once the gene set scores are computed, we can test for differential expression using `r Biocpkg("limma")`. We will run a differential analysis due to treatment, adjusted for time points:
 
 ```{r}
-library(limma)
-
 mod <- model.matrix(~ Treatment + Time, colData(scores))
 fit <- lmFit(assay(scores), mod) %>% eBayes()
-topTab <- topTable(fit, coef = 2:4)
-topTab
+topTab <- topTable(fit, coef = 2:4, n = Inf)
+head(topTab)
 ```
 
-Many gene sets present high differences due to treatment. We will explore the distribution of gene set scores for the top gene set:
+
+For easing the interpretation, we can add the gene set full name to the results table:
+
+```{r}
+topTab$GeneSetName <- rowData(scores)[rownames(topTab), "Term"]
+head(topTab)
+```
+
+
+Many gene sets present high differences due to treatment. We will further explore the top gene set (GO:1990440 or positive regulation of transcription from RNA polymerase II promoter in response to endoplasmic reticulum stress).
+
+Once we have our candidate gene set, we recommend taking a look to the distribution of gene set scores based on our variable of interest:
 
 ```{r plotScores, fig.cap = "GO:1990440 activity score. GO:1990440 presented the most significant difference due to treatment."}
 data.frame(Expression = as.vector(assay(scores["GO:1990440", ])),
@@ -184,7 +198,23 @@ data.frame(Expression = as.vector(assay(scores["GO:1990440", ])),
 ```
 
 
-We can see the differences in GO:1990440 activiation in Figure \@ref(fig:plotScores). 
+We can clearly see differences in GO:1990440 activation scores between the different treatment groups in Figure \@ref(fig:plotScores). UT samples have the lowest gene set expression while E2FGF10 have the highest activation scores. 
+
+Nonetheless, notice that the sign of the gene set score is arbitrary and cannot be directly. To be able to interpret the scores, we can take a look to the weights used for the computation:
+
+```{r plotWeight, fig.cap = "Weights of GO:1990440 gene set. The figure represent the weights used for computing the GO:1990440 gene set score. Weights are in absolute value to enable an easier comparison of their magnitude. Positive weights are shown in blue and negative in red.", fig.wide = TRUE}
+weights <- rowData(scores)["GO:1990440", ]$Weights_SYMBOL[[1]]
+data.frame(weight = weights, gene = names(weights)) %>%
+    mutate(Direction = ifelse(weight > 0, "Positive", "Negative")) %>%
+    ggplot(aes(x = gene, y = abs(weight), fill = Direction)) + 
+    geom_bar(stat = "identity") +
+    theme_bw() +
+    ylab("Weight") +
+    xlab("Gene")
+```
+
+In Figure \@ref(fig:plotWeight), we can see a comparison between the gene weights used for the gene set score computation.  Genes with larger weights have a higher importance on gene set computation. Thus, ATF6, ATF5, DDIT3, CEBPB and TP53 are the most relevant genes for the gene set computation. As all of them have a positive sign, individuals with higher gene set scores will have higher expression of these genes. 
+
 
 ```{r}
 sessionInfo()

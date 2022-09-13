@@ -4,13 +4,16 @@
 \alias{computeGeneSetScores}
 \title{Compute gene set scores}
 \usage{
-computeGeneSetScores(SE, model)
+computeGeneSetScores(SE, model, annot = NULL)
 }
 \arguments{
 \item{SE}{A `SummarizedExperiment`}
 
 \item{model}{A string matching a model in `NetActivityData` or a custom
 matrix.}
+
+\item{annot}{A `data.frame` with the gene set annotation, only when using a
+custom model.}
 }
 \value{
 A `SummarizedExperiment` with the gene set scores.
@@ -18,13 +21,16 @@ A `SummarizedExperiment` with the gene set scores.
 \description{
 This function will compute the gene set scores using gene weights previously
 computed. The package `NetActivityData` contains different pre-trained models
-that can be used to compute the gene set scores.
+that can be used to compute the gene set scores. Models included in
+`NetActivityData` also includes gene set annotation.
 }
 \details{
 This function can also compute the gene set scores for a model not present in
-`NetActivityData`. In this case, `param` should be a matrix where the columns
-are the genes and the rows the gene sets.
-
+`NetActivityData`. In this case, `model` should be a matrix where the columns
+are the genes and the rows the gene sets. When using a custom model, we can
+add the gene set annotation using the `annot` paramenter. `annot` parameter
+should contain a column named `GeneSet` matching the gene set ids from the
+weights matrix (rownames of weights matrix).
 
 Notice that the function will not accept raw count data. We recommend to
 convert count data to continuous values using the Variant Stabilization

@@ -1,3 +1,8 @@
+# NetActivity 0.99.2
+
+* Enable adding gene set annotation to `computeGeneSetScores`
+
+
 # NetActivity 0.99.1
 
 * Initial version of the package.
