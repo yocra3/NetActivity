@@ -13,6 +13,7 @@ You can install the development version of NetActivity from [GitHub](https://git
 ``` r
 # install.packages("devtools")
 devtools::install_github("yocra3/NetActivity")
+devtools::install_github("yocra3/NetActivityData")
 ```
 
 ## Example
