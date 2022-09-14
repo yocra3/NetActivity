@@ -33,11 +33,11 @@ devtools::install_github("yocra3/NetActivityData")
 
 The coordination of multiple genes is required to perform specific biological functions, so grouping gene expression in gene sets provides better biological insights than studying individual genes. We have developed a framework (`NetActivityTrain`) to encode individual gene expression measurements into gene set scores (ref). Our framework is based on sparsely-connected autoencoders. In our framework, each gene set is represented by a neuron in the hidden layer, which is connected to only the gene set genes from the input layer. Nonetheless, to ensure a better representation of the gene sets, all gene sets are connected to all genes in the output layer.
 
-Our framework is implemented, which is useful to train the models but not to apply the models to new data. To overcome this issue, we have implemented the package `r Githubpkg("yocra3/NetActivity")`. `r Githubpkg("yocra3/NetActivity")` enables to easily apply the gene set representations obtained with `NetActivityTrain` to new datasets. We have included two models containing GO Biological processes and KEGG pathways trained with GTEx or TCGA data in `r Githubpkg("yocra3/NetActivityData")`.
+Our framework, `NetActivityTrain`, is implemented in Nextflow, which is useful to train the models but not to apply the models to new data. To overcome this issue, we have implemented the package `r Githubpkg("yocra3/NetActivity")`. `r Githubpkg("yocra3/NetActivity")` enables to easily apply the gene set representations obtained with `NetActivityTrain` to new datasets. We have included two models containing GO Biological processes and KEGG pathways trained with GTEx or TCGA data in `r Githubpkg("yocra3/NetActivityData")`.
 
 # Pre-processing
 
-Computation of gene set scores is performed with `computeGeneSetScores`. The `computeGeneSetScores` functions requires a `SummarizedExperiment` with the gene expression data standardized at gene level. The function `prepareSummarizedExperiment` facilitates the process.
+Computation of gene set scores is performed with `computeGeneSetScores`. The `computeGeneSetScores` functions requires a `r Biocpkg("SummarizedExperiment")` with the gene expression data standardized at gene level. The function `prepareSummarizedExperiment` facilitates the process.
 
 `r Githubpkg("yocra3/NetActivity")` can be applied to RNAseq or microarray data. We will exemplify how to process each dataset independently.
 
@@ -66,7 +66,7 @@ out <- prepareSummarizedExperiment(vst, "gtex_gokegg")
 out
 ```
 
-`prepareSummarizedExperiment` performs two steps. First, it checks whether all genes in the model are present in the input `SummarizedExperiment`. Missing genes are added as a row of 0s. Second, the function standardized gene expression data by gene. We can compare the genes values before and after `prepareSummarizedExperiment` to see the effect of normalization:
+`prepareSummarizedExperiment` performs two steps. First, it checks whether all genes in the model are present in the input `SummarizedExperiment`. Missing genes are added as a row of 0s. Second, the function standardizes gene expression data by gene. We can compare the genes values before and after `prepareSummarizedExperiment` to see the effect of normalization:
 
 ```{r, warning = FALSE, message = FALSE}
 library(tidyverse)
@@ -99,7 +99,7 @@ Next, we can check the values of a gene not present originally in the data:
 assay(out["ENSG00000278637", ]) 
 ```
 
-Notice that functions included in `r Rpackage("NetActivity")` require that the `SummarizedExperiment` and the model shared the same annotation. In this example, both objects were annotated using ENSEMBL, so no additional steps were required. In case the genes in the `SummarizedExperiment` use a different annotation, see how to convert them in the next section. Notice that the current models included in `r Rpackage("NetActivityData")` contain the genes using ENSEMBL annotation.
+Notice that functions included in `r Rpackage("NetActivity")` require that the `SummarizedExperiment` and the model shared the same annotation. In this example, both objects were annotated using ENSEMBL annotation, so no additional steps were required. In case the genes in the `SummarizedExperiment` use a different annotation, see how to convert them in the next section. Notice that the current models included in `r Rpackage("NetActivityData")` contain the genes using ENSEMBL annotation.
 
 ## Microarray data
 
@@ -190,20 +190,21 @@ Many gene sets present high differences due to treatment. We will further explor
 
 Once we have our candidate gene set, we recommend taking a look to the distribution of gene set scores based on our variable of interest:
 
-```{r plotScores, fig.cap = "GO:1990440 activity score. GO:1990440 presented the most significant difference due to treatment."}
+```{r plotScores, fig.cap = "GO:1990440 activity scores. GO:1990440 presented the most significant difference due to treatment."}
 data.frame(Expression = as.vector(assay(scores["GO:1990440", ])),
     Treatment = scores$Treatment) %>%
     ggplot(aes(x = Treatment, y = Expression, col = Treatment)) +
         geom_boxplot() +
-        theme_bw()       
+        theme_bw() +
+    ylab("NetActivity scores")
 ```
 
 
-We can clearly see differences in GO:1990440 activation scores between the different treatment groups in Figure \@ref(fig:plotScores). UT samples have the lowest gene set expression while E2FGF10 have the highest activation scores. 
+We can clearly see differences in GO:1990440 activation scores between the different treatment groups in Figure \@ref(fig:plotScores). UT samples have the lowest gene set activity scores while E2FGF10 have the highest activation scores. 
 
-Nonetheless, notice that the sign of the gene set score is arbitrary and cannot be directly. To be able to interpret the scores, we can take a look to the weights used for the computation:
+Nonetheless, notice that the sign of the gene set score is arbitrary and cannot be directly interpreted. To be able to interpret the scores, we can take a look to the weights used for the computation:
 
-```{r plotWeight, fig.cap = "Weights of GO:1990440 gene set. The figure represent the weights used for computing the GO:1990440 gene set score. Weights are in absolute value to enable an easier comparison of their magnitude. Positive weights are shown in blue and negative in red.", fig.wide = TRUE}
+```{r plotWeight, fig.cap = "Weights of GO:1990440 gene set. The figure represents the weights used for computing the GO:1990440 gene set score. Weights are in absolute value to enable an easier comparison of their magnitude. Positive weights are shown in blue and negative in red.", fig.wide = TRUE}
 weights <- rowData(scores)["GO:1990440", ]$Weights_SYMBOL[[1]]
 data.frame(weight = weights, gene = names(weights)) %>%
     mutate(Direction = ifelse(weight > 0, "Positive", "Negative")) %>%
@@ -214,7 +215,7 @@ data.frame(weight = weights, gene = names(weights)) %>%
     xlab("Gene")
 ```
 
-In Figure \@ref(fig:plotWeight), we can see a comparison between the gene weights used for the gene set score computation.  Genes with larger weights have a higher importance on gene set computation. Thus, ATF6, ATF5, DDIT3, CEBPB and TP53 are the most relevant genes for the gene set computation. As all of them have a positive sign, individuals with higher gene set scores will have higher expression of these genes. 
+In Figure \@ref(fig:plotWeight), we can see a comparison between the gene weights used for the gene set score computation.  Genes with larger weights have a higher importance on gene set computation. Thus, ATF6, ATF4, DDIT3, CEBPB and TP53 are the most relevant genes for the gene set computation. As all of them have a positive sign, individuals with higher gene set activity scores for GO:1990440 will have higher expression of these genes. 
 
 
 ```{r}
