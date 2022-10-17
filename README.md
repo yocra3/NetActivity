@@ -8,6 +8,15 @@ The goal of NetActivity is to compute gene set scores. Gene set scores are compu
 
 ## Installation
 
+You can install the current release version of NetActivity from [Bioconductor](https://bioconductor.org/) with:
+
+``` r
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("NetActivity")
+```
+
 You can install the development version of NetActivity from [GitHub](https://github.com/) with:
 
 ``` r

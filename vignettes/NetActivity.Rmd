@@ -21,6 +21,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Installation
 
+You can install the current release version of NetActivity from [Bioconductor](https://bioconductor.org/) with:
+
+```{r, eval = FALSE}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("NetActivity")
+```
+
+
 You can install the development version of NetActivity from [GitHub](https://github.com/) with:
 
 ```{r, eval = FALSE}
@@ -31,7 +41,7 @@ devtools::install_github("yocra3/NetActivityData")
 
 # Introduction
 
-The coordination of multiple genes is required to perform specific biological functions, so grouping gene expression in gene sets provides better biological insights than studying individual genes. We have developed a framework (`NetActivityTrain`) to encode individual gene expression measurements into gene set scores (ref). Our framework is based on sparsely-connected autoencoders. In our framework, each gene set is represented by a neuron in the hidden layer, which is connected to only the gene set genes from the input layer. Nonetheless, to ensure a better representation of the gene sets, all gene sets are connected to all genes in the output layer.
+The coordination of multiple genes is required to perform specific biological functions, so grouping gene expression in gene sets provides better biological insights than studying individual genes. We have developed a framework, [NetActivityTrain](http://github.com/yocra3/NetActivityTrain), to encode individual gene expression measurements into gene set scores. This framework is implemented in [Nextflow](http://nextflow.io/) and is based on sparsely-connected autoencoders. In our framework, each gene set is represented by a neuron in the hidden layer, which is connected to only the gene set genes from the input layer. Nonetheless, to ensure a better representation of the gene sets, all gene sets are connected to all genes in the output layer.
 
 Our framework, `NetActivityTrain`, is implemented in Nextflow, which is useful to train the models but not to apply the models to new data. To overcome this issue, we have implemented the package `r Githubpkg("yocra3/NetActivity")`. `r Githubpkg("yocra3/NetActivity")` enables to easily apply the gene set representations obtained with `NetActivityTrain` to new datasets. We have included two models containing GO Biological processes and KEGG pathways trained with GTEx or TCGA data in `r Githubpkg("yocra3/NetActivityData")`.
 
