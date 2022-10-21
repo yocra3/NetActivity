@@ -24,6 +24,25 @@ test_that("Function standardizes and adds missing genes", {
 
 })
 
+test_that("Check delayed matrix", {
+
+    vst_del <- vst
+    SummarizedExperiment::assay(vst_del) <- DelayedArray::DelayedArray(SummarizedExperiment::assay(vst))
+    out_del <- prepareSummarizedExperiment(vst_del, "gtex_gokegg")
+    expect_s4_class(out_del, "SummarizedExperiment")
+    expect_equal(SummarizedExperiment::colData(out_del), SummarizedExperiment::colData(vst_del))
+
+    ## Check standardize
+    val_del <- data.matrix(SummarizedExperiment::assay(vst_del["ENSG00000000003", ]))
+    expect_equal( data.matrix(SummarizedExperiment::assay(out_del["ENSG00000000003", ])), (val_del - mean(val_del))/sd(val_del),
+                  ignore_attr = TRUE
+    )
+    ## Check adding genes
+    expect_true("ENSG00000273540" %in% rownames(out_del))
+    expect_equal( data.matrix(SummarizedExperiment::assay(out_del["ENSG00000273540", ])), rep(0, ncol(out_del)), ignore_attr = TRUE)
+
+})
+
 test_that("Custom matrix", {
   mat <- matrix(1:6, nrow = 2, dimnames = list(c("GS1", "GS2"), c("ENSG00000000003", "ENSG00000000419", "COT")))
 

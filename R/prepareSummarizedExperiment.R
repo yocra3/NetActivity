@@ -64,13 +64,16 @@ prepareSummarizedExperiment <- function(SE, model){
         out <- matrix(0, ncol(SE),
             nrow = length(out_probes), ncol = ncol(SE),
             dimnames = list(out_probes, colnames(SE)))
+        if (is(SummarizedExperiment::assay(SE), "DelayedArray")){
+            out <- DelayedArray::DelayedArray(out)
+        }
         new_assay <- rbind(SummarizedExperiment::assay(SE), out)
         SE <- SummarizedExperiment::SummarizedExperiment(new_assay, colData = SummarizedExperiment::colData(SE))
     }
 
     ## Standardize gene expression
     vals <- SummarizedExperiment::assay(SE)
-    mat <- (vals - DelayedArray::rowMeans(vals))/matrixStats::rowSds(vals)
+    mat <- (vals - DelayedArray::rowMeans(vals))/DelayedMatrixStats::rowSds(vals)
     mat[is.nan(mat)] <- 0
     SummarizedExperiment::assay(SE) <- mat
 

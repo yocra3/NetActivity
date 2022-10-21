@@ -13,6 +13,9 @@
 #'
 #' @importFrom methods is
 #' @importFrom utils data
+#' @importFrom DelayedMatrixStats rowSds
+#' @importFrom DelayedArray DelayedArray
+#' @importFrom SummarizedExperiment assay SummarizedExperiment rowData
 #' @import airway
 #' @importFrom DESeq2 DESeqDataSet makeExampleDESeqDataSet varianceStabilizingTransformation
 #' @import NetActivityData

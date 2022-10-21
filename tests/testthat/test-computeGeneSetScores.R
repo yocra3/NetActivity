@@ -17,6 +17,19 @@ test_that("Computation of gene set scores", {
 
 })
 
+test_that("Check DelayedMatrix", {
+    input_del <- input
+    SummarizedExperiment::assay(input_del) <- DelayedArray::DelayedArray(SummarizedExperiment::assay(input))
+
+    out_del <- computeGeneSetScores(input_del, "gtex_gokegg" )
+    expect_s4_class(out_del, "SummarizedExperiment")
+    expect_equal(SummarizedExperiment::colData(out_del), SummarizedExperiment::colData(input_del))
+    out <- computeGeneSetScores(input, "gtex_gokegg" )
+
+    expect_equal(data.matrix(SummarizedExperiment::assay(out_del)), SummarizedExperiment::assay(out))
+
+})
+
 test_that("Custom matrix", {
   mat <- matrix(1:6, nrow = 2, dimnames = list(c("GS1", "GS2"), c("ENSG00000000003", "ENSG00000000419", "COT")))
 
