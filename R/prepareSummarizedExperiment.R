@@ -73,7 +73,7 @@ prepareSummarizedExperiment <- function(SE, model){
 
     ## Standardize gene expression
     vals <- SummarizedExperiment::assay(SE)
-    mat <- (vals - DelayedArray::rowMeans(vals))/DelayedMatrixStats::rowSds(vals)
+    mat <- (vals - DelayedArray::rowMeans(vals, na.rm = TRUE))/DelayedMatrixStats::rowSds(vals, na.rm = TRUE)
     mat[is.nan(mat)] <- 0
     SummarizedExperiment::assay(SE) <- mat
 
